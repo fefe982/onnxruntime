@@ -164,11 +164,11 @@ void SetupUpsampleFilterAntiAlias(FilterParamsAntiAlias<T>& p,
                                   const GetOriginalCoordinateFunc& get_original_coordinate,
                                   bool exclude_outside, const bool is_nchw) {
   auto compute_weight_coefficients = [&alloc, roi, &get_original_coordinate, exclude_outside](const FilterParamsAntiAlias<T>& p,
-                                                                                               const int64_t input_size,
-                                                                                               const int64_t output_size,
-                                                                                               size_t rindex,
-                                                                                               FilterParamsBaseAntiAlias<T>& param_base,
-                                                                                               const float rscale) -> int64_t {
+                                                                                              const int64_t input_size,
+                                                                                              const int64_t output_size,
+                                                                                              size_t rindex,
+                                                                                              FilterParamsBaseAntiAlias<T>& param_base,
+                                                                                              const float rscale) -> int64_t {
     param_base.bound.reserve(static_cast<size_t>(output_size) * 2);
     param_base.out_of_bound_idx.reserve(static_cast<size_t>(output_size));
 

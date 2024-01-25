@@ -1,9 +1,11 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+#include "core/providers/cpu/tensor/upsample.h"
+#include "core/common/inlined_containers.h"
+
 #include "core/common/safeint.h"
 #include "core/platform/threadpool.h"
-#include "core/providers/cpu/tensor/upsample.h"
 #include "core/providers/cpu/tensor/upsample_antialias.h"
 using namespace onnxruntime::common;
 using namespace std;
@@ -29,6 +31,46 @@ REGISTER_VERSIONED_TYPED_KERNEL(float, 9, 9);
 REGISTER_VERSIONED_TYPED_KERNEL(int32_t, 9, 9);
 REGISTER_VERSIONED_TYPED_KERNEL(int8_t, 9, 9);
 REGISTER_VERSIONED_TYPED_KERNEL(uint8_t, 9, 9);
+
+void UpsampleBase::AdjustOutputSizeAsPolicy(TensorShapeVector& output_dims, gsl::span<const int64_t> input_dims,
+                                            InlinedVector<float>& scales) const {
+  InlinedHashSet<int64_t> axes_set(axes_.begin(), axes_.end());
+
+  // AspectRatioPolicy::STRETCH is default policy when opset < 18
+  if (keep_aspect_ratio_policy_ == AspectRatioPolicy::STRETCH) {
+    return;
+  }
+
+  float scale_in_policy = 0.0f;
+  if (keep_aspect_ratio_policy_ == AspectRatioPolicy ::NOT_LARGER) {
+    scale_in_policy = std::numeric_limits<float>::max();
+
+    for (size_t i = 0; i < scales.size(); i++) {
+      if (axes_set.empty() || axes_set.count(i) > 0) {
+        scale_in_policy = std::min(scale_in_policy, scales[i]);
+      }
+    }
+  } else if (keep_aspect_ratio_policy_ == AspectRatioPolicy ::NOT_SMALLER) {
+    scale_in_policy = std::numeric_limits<float>::min();
+
+    for (size_t i = 0; i < scales.size(); i++) {
+      if (axes_set.empty() || axes_set.count(i) > 0) {
+        scale_in_policy = std::max(scale_in_policy, scales[i]);
+      }
+    }
+  }
+
+  for (size_t i = 0; i < scales.size(); i++) {
+    // if axes is not specified (AKA axes_set.empty()), we apply the policy to all axes
+    if (axes_set.empty() || axes_set.count(i) > 0) {
+      scales[i] = scale_in_policy;
+      output_dims[i] = static_cast<int64_t>(std::round(scales[i] * input_dims[i]));
+    } else {
+      scales[i] = 1.0f;
+      output_dims[i] = input_dims[i];
+    }
+  }
+}
 
 template <typename T>
 void UpsampleNearest2x(int64_t batch_size,
@@ -1327,7 +1369,7 @@ Status Upsample<T>::Compute(OpKernelContext* context) const {
   // Initialize the roi array to all zeros as this will be the most common case
   // Roi data is needed only when coordinate transformation mode is set to tf_crop_and_resize
   // for all other cases we need a 0 initialized roi array
-  std::vector<float> roi_array(roi_);
+  InlinedVector<float> roi_array(roi_);
 
   if (!roi_cached_) {
     bool use_default_roi = true;
@@ -1353,7 +1395,7 @@ Status Upsample<T>::Compute(OpKernelContext* context) const {
 
   ComputeROIWithAxes(roi_array, input_dims.size());
   // Get scales data
-  std::vector<float> scales_array(input_dims.size());
+  InlinedVector<float> scales_array(input_dims.size());
 
   if (OpKernel::Node().InputDefs().size() == 1) {
     // Compute output shape from scales and input dims

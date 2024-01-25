@@ -39,9 +39,9 @@ REGISTER_VERSIONED_TYPED_KERNEL(uint8_t, 9, 9);
 
 template <typename T>
 Status Upsample<T>::BaseCompute(OpKernelContext* context,
-                                const std::vector<float>& roi,
-                                const std::vector<float>& scales,
-                                const gsl::span<const int64_t>& output_dims) const {
+                                gsl::span<const float> roi,
+                                gsl::span<const float> scales,
+                                gsl::span<const int64_t> output_dims) const {
   const Tensor* X = context->Input<Tensor>(0);
   auto X_dims = X->Shape().GetDims();
   int32_t rank = static_cast<int32_t>(X_dims.size());
@@ -124,7 +124,7 @@ Status Upsample<T>::ComputeInternal(OpKernelContext* context) const {
   auto input_dims = X->Shape().GetDims();
 
   TensorShapeVector output_dims(input_dims.size());
-  std::vector<float> roi_array(input_dims.size() * 2, 0.0f);
+  InlinedVector<float> roi_array(input_dims.size() * 2, 0.0f);
   if (!roi_cached_) {
     bool use_default_roi = true;
     if (need_roi_input_) {
@@ -147,29 +147,35 @@ Status Upsample<T>::ComputeInternal(OpKernelContext* context) const {
     }
   }
 
-  const std::vector<float>& roi = roi_cached_ ? roi_ : roi_array;
-  std::vector<float> scales_array = scales_;
+  ComputeROIWithAxes(roi_array, input_dims.size());
+  // Get scales data
+  InlinedVector<float> scales_array(input_dims.size());
 
   if (OpKernel::Node().InputDefs().size() == 1) {
     // Compute output shape from scales and input dims
+    scales_array = scales_;
+
     ComputeOutputShape(scales_array, input_dims, output_dims);
-    return BaseCompute(context, roi, scales_, output_dims);
+    return BaseCompute(context, roi_array, scales_, output_dims);
   }
 
   const Tensor* scales = context->Input<Tensor>(scales_input_idx_);
   const Tensor* sizes = context->Input<Tensor>(sizes_input_idx_);
 
   if (scales_cached_) {
-    ORT_ENFORCE(sizes == nullptr, "Only one of scales or sizes must be provided as input.");
+    ORT_RETURN_IF_NOT(sizes == nullptr, "Only one of scales or sizes must be provided as input.");
+    scales_array = scales_;
+    // Compute output shape from scales and input dims
     ComputeOutputShape(scales_array, input_dims, output_dims);
-    return BaseCompute(context, roi, scales_, output_dims);
+    return BaseCompute(context, roi_array, scales_array, output_dims);
   }
 
-  scales_array.resize((input_dims.size()));
   if (scales != nullptr && scales->Shape().Size() != 0) {
     // use scales input data
     ORT_ENFORCE(sizes == nullptr, "Only one of scales or sizes must be provided as input.");
     ORT_RETURN_IF_ERROR(ParseScalesData(scales, scales_array, input_dims.size()));
+
+    // Compute output shape from scales and input dims
     ComputeOutputShape(scales_array, input_dims, output_dims);
   } else {
     // When sizes input is available directly populate it into the output_dims array.
@@ -179,7 +185,7 @@ Status Upsample<T>::ComputeInternal(OpKernelContext* context) const {
     ORT_RETURN_IF_ERROR(ParseScalesDataAndAdjustOutputSize(output_dims, input_dims, scales_array));
   }
 
-  return BaseCompute(context, roi, scales_array, output_dims);
+  return BaseCompute(context, roi_array, scales_array, output_dims);
 }
 
 }  // namespace cuda
