@@ -21,10 +21,6 @@
 
 namespace onnxruntime {
 
-namespace ConstValue {
-constexpr int32_t mag_factor = 1 << (22 - 1);
-}
-
 namespace {
 const uint8_t* GetLookupTableShared() {
   // initialized once
@@ -57,8 +53,8 @@ struct FilterParamsBaseAntiAlias {
 
 template <typename T>
 struct FilterParamsAntiAlias {
-  float support_size = 2.0f;
-  float cubic_coeff_a = -0.75f;
+  float support_size = kSupportSize;
+  float cubic_coeff_a = kCubicCoeffA;
 
   FilterParamsBaseAntiAlias<T> dim_x;
   FilterParamsBaseAntiAlias<T> dim_y;
@@ -89,7 +85,7 @@ struct BilinearParamsAntiAlias : FilterParamsAntiAlias<T> {
 template <typename T>
 struct BiCubicParamsAntiAlias : FilterParamsAntiAlias<T> {
   BiCubicParamsAntiAlias() {
-    this->support_size = 4.0f;
+    this->support_size = kBiCubicSupportSize;
   }
 
   // taken from
@@ -122,27 +118,6 @@ struct TriLinearParamsAntiAlias : FilterParamsAntiAlias<T> {
     }
     return 0.0f;
   }
-};
-
-template <typename T>
-struct AccumulateType {
-  using type = int32_t;
-  using Dtype = T;
-};
-
-template <>
-struct AccumulateType<int32_t> {
-  using type = float;
-};
-
-template <>
-struct AccumulateType<float> {
-  using type = float;
-};
-
-template <>
-struct AccumulateType<double> {
-  using type = double;
 };
 
 // The following method supports a 3/4/5-D input in 'Linear mode, cubic mode'

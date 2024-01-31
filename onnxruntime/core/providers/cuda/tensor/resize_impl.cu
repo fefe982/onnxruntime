@@ -12,7 +12,7 @@ using onnxruntime::ResizeNearestMode;
 using onnxruntime::UpsampleMode;
 
 struct NearestPixel_SIMPLE {
-  __device__ __forceinline__ int operator() (float x_original, bool is_down_sampling) const {
+  __device__ __forceinline__ int operator()(float x_original, bool is_down_sampling) const {
     if (is_down_sampling) {
       return static_cast<int>(_Ceil(x_original));
     }
@@ -21,7 +21,7 @@ struct NearestPixel_SIMPLE {
 };
 
 struct NearestPixel_ROUND_PREFER_FLOOR {
-  __device__ __forceinline__ int operator() (float x_original, bool) const {
+  __device__ __forceinline__ int operator()(float x_original, bool) const {
     if (x_original == static_cast<int>(x_original) + 0.5f) {
       return static_cast<int>(_Floor(x_original));
     }
@@ -30,58 +30,62 @@ struct NearestPixel_ROUND_PREFER_FLOOR {
 };
 
 struct NearestPixel_ROUND_PREFER_CEIL {
-  __device__ __forceinline__ int operator() (float x_original, bool) const {
+  __device__ __forceinline__ int operator()(float x_original, bool) const {
     return static_cast<int>(roundf(x_original));
   }
 };
 
 struct NearestPixel_FLOOR {
-  __device__ __forceinline__ int operator() (float x_original, bool) const {
+  __device__ __forceinline__ int operator()(float x_original, bool) const {
     return static_cast<int>(_Floor(x_original));
   }
 };
 
 struct NearestPixel_CEIL {
-  __device__ __forceinline__ int operator() (float x_original, bool) const {
+  __device__ __forceinline__ int operator()(float x_original, bool) const {
     return static_cast<int>(_Ceil(x_original));
   }
 };
 
 struct TransformCoordinate_ASYMMETRIC {
-  __device__ __forceinline__ float operator() (float x_resized, float x_scale, float, float, float, float) const {
+  __device__ __forceinline__ float operator()(float x_resized, float x_scale, float, float, float, float) const {
     return x_resized / x_scale;
   }
 };
 
 struct TransformCoordinate_HALF_PIXEL {
-  __device__ __forceinline__ float operator() (float x_resized, float x_scale, float, float, float, float) const {
+  __device__ __forceinline__ float operator()(float x_resized, float x_scale, float, float, float, float) const {
     return ((x_resized + 0.5f) / x_scale) - 0.5f;
   }
 };
 
 struct TransformCoordinate_PYTORCH_HALF_PIXEL {
-  __device__ __forceinline__ float operator() (float x_resized, float x_scale, float length_resized, float, float, float) const {
+  __device__ __forceinline__ float operator()(float x_resized, float x_scale, float length_resized, float,
+                                              float, float) const {
     return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
   }
 };
 
 struct TransformCoordinate_TF_HALF_PIXEL_FOR_NN {
-  __device__ __forceinline__ float operator() (float x_resized, float x_scale, float, float, float, float) const {
+  __device__ __forceinline__ float operator()(float x_resized, float x_scale, float, float, float, float) const {
     return (x_resized + 0.5f) / x_scale;
   }
 };
 
 struct TransformCoordinate_ALIGN_CORNERS {
-  __device__ __forceinline__ float operator() (float x_resized, float, float length_resized, float length_original, float, float) const {
+  __device__ __forceinline__ float operator()(float x_resized, float, float length_resized, float length_original,
+                                              float, float) const {
     return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1);
   }
 };
 
 struct TransformCoordinate_TF_CROP_AND_RESIZE {
-  __device__ __forceinline__ float operator() (float x_resized, float, float length_resized, float length_original, float roi_start, float roi_end) const {
+  __device__ __forceinline__ float operator()(float x_resized, float, float length_resized, float length_original,
+                                              float roi_start, float roi_end) const {
     auto orig = length_resized > 1
-      ? roi_start * (length_original - 1) + (x_resized * (roi_end - roi_start) * (length_original - 1)) / (length_resized - 1)
-      : 0.5 * (roi_start + roi_end) * (length_original - 1);
+                    ? roi_start * (length_original - 1) +
+                          (x_resized * (roi_end - roi_start) * (length_original - 1)) / (length_resized - 1)
+                    : 0.5 * (roi_start + roi_end) * (length_original - 1);
     return static_cast<float>(orig);
   }
 };
@@ -100,12 +104,12 @@ struct TransformCoordinate_TF_CROP_AND_RESIZE {
     const auto& the_type = TYPE;                                                                                                       \
     /* don't use TYPE again in case it is an expensive or side-effect op */                                                            \
     switch (the_type) {                                                                                                                \
-      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::HALF_PIXEL,           TransformCoordinate_HALF_PIXEL, __VA_ARGS__)           \
-      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::ASYMMETRIC,           TransformCoordinate_ASYMMETRIC, __VA_ARGS__)           \
-      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::PYTORCH_HALF_PIXEL,   TransformCoordinate_PYTORCH_HALF_PIXEL, __VA_ARGS__)   \
-      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::ALIGN_CORNERS,        TransformCoordinate_ALIGN_CORNERS, __VA_ARGS__)        \
+      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::HALF_PIXEL, TransformCoordinate_HALF_PIXEL, __VA_ARGS__)                     \
+      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::ASYMMETRIC, TransformCoordinate_ASYMMETRIC, __VA_ARGS__)                     \
+      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::PYTORCH_HALF_PIXEL, TransformCoordinate_PYTORCH_HALF_PIXEL, __VA_ARGS__)     \
+      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::ALIGN_CORNERS, TransformCoordinate_ALIGN_CORNERS, __VA_ARGS__)               \
       CASE_TYPE_COORD(ResizeCoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN, TransformCoordinate_TF_HALF_PIXEL_FOR_NN, __VA_ARGS__) \
-      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::TF_CROP_AND_RESIZE,   TransformCoordinate_TF_CROP_AND_RESIZE, __VA_ARGS__)   \
+      CASE_TYPE_COORD(ResizeCoordinateTransformationMode::TF_CROP_AND_RESIZE, TransformCoordinate_TF_CROP_AND_RESIZE, __VA_ARGS__)     \
       default:                                                                                                                         \
         ORT_THROW("unknown ResizeCoordinateTransformationMode");                                                                       \
     }                                                                                                                                  \
@@ -119,11 +123,11 @@ struct TransformCoordinate_TF_CROP_AND_RESIZE {
     const auto& the_type = TYPE;                                                                             \
     /* don't use TYPE again in case it is an expensive or side-effect op */                                  \
     switch (the_type) {                                                                                      \
-      CASE_TYPE_NEAREST(ResizeNearestMode::SIMPLE,             NearestPixel_SIMPLE, __VA_ARGS__)             \
+      CASE_TYPE_NEAREST(ResizeNearestMode::SIMPLE, NearestPixel_SIMPLE, __VA_ARGS__)                         \
       CASE_TYPE_NEAREST(ResizeNearestMode::ROUND_PREFER_FLOOR, NearestPixel_ROUND_PREFER_FLOOR, __VA_ARGS__) \
-      CASE_TYPE_NEAREST(ResizeNearestMode::ROUND_PREFER_CEIL,  NearestPixel_ROUND_PREFER_CEIL, __VA_ARGS__)  \
-      CASE_TYPE_NEAREST(ResizeNearestMode::FLOOR,              NearestPixel_FLOOR, __VA_ARGS__)              \
-      CASE_TYPE_NEAREST(ResizeNearestMode::CEIL,               NearestPixel_CEIL, __VA_ARGS__)               \
+      CASE_TYPE_NEAREST(ResizeNearestMode::ROUND_PREFER_CEIL, NearestPixel_ROUND_PREFER_CEIL, __VA_ARGS__)   \
+      CASE_TYPE_NEAREST(ResizeNearestMode::FLOOR, NearestPixel_FLOOR, __VA_ARGS__)                           \
+      CASE_TYPE_NEAREST(ResizeNearestMode::CEIL, NearestPixel_CEIL, __VA_ARGS__)                             \
       default:                                                                                               \
         ORT_THROW("unknown ResizeNearestMode");                                                              \
     }                                                                                                        \
@@ -151,7 +155,7 @@ __global__ void _ResizeNearestMappingKernel2D(
 
     // only apply co-ordinate transformation if scale != 1.0
     if (scales_height == 1.0f) {
-        dims_mapping[id].extrapolate_ = 0;
+      dims_mapping[id].extrapolate_ = 0;
     } else {
       float orig_coord = transform_coordinate(static_cast<float>(dim), scales_height, static_cast<float>(output_height),
                                               static_cast<float>(input_height), roi_start_height, roi_end_height);
@@ -293,26 +297,288 @@ __global__ void _ResizeBilinearCoordinateMapping(
     LinearMappingInfo* dims_mapping) {
   CALCULATE_ELEMENTWISE_INDEX_OR_EXIT(id, SumHW);
   if (id < output_height) {  //  y = id
-    float input_y = scale_height == 1 ? static_cast<float>(id) :
-                                        transform_coordinate(static_cast<float>(id), scale_height,
-                                        static_cast<float>(output_height), static_cast<float>(input_height),
-                                        roi_height_start, roi_height_end);
+    float input_y = scale_height == 1 ? static_cast<float>(id) : transform_coordinate(static_cast<float>(id), scale_height, static_cast<float>(output_height), static_cast<float>(input_height), roi_height_start, roi_height_end);
     dims_mapping[id].extrapolate_ = (int)(extrapolation_enabled && (input_y < 0 || input_y > static_cast<float>(input_height - 1)));
     input_y = max(0.0f, min(input_y, static_cast<float>(input_height - 1)));
     int y_int = static_cast<int>(input_y);
     dims_mapping[id].origin_ = y_int;
     dims_mapping[id].weight_ = (y_int >= input_height - 1) ? 0.5f : input_y - y_int;
-  } else {  //x = id - output_height
-    float input_x = scale_width == 1 ? static_cast<float>(id - output_height) :
-                                       transform_coordinate(static_cast<float>(id - output_height), scale_width,
-                                       static_cast<float>(output_width), static_cast<float>(input_width),
-                                       roi_width_start, roi_width_end);
+  } else {  // x = id - output_height
+    float input_x = scale_width == 1 ? static_cast<float>(id - output_height) : transform_coordinate(static_cast<float>(id - output_height), scale_width, static_cast<float>(output_width), static_cast<float>(input_width), roi_width_start, roi_width_end);
     dims_mapping[id].extrapolate_ = (int)(extrapolation_enabled && (input_x < 0 || input_x > static_cast<float>(input_width - 1)));
     input_x = max(0.0f, min(input_x, static_cast<float>(input_width - 1)));
     int x_int = static_cast<int>(input_x);
     dims_mapping[id].origin_ = x_int;
     dims_mapping[id].weight_ = (x_int >= input_width - 1) ? 0.5f : input_x - x_int;
   }
+}
+
+// Antialiasing filters
+struct BilinearParamsAntiAlias {
+  __device__ float operator()(float x, float /* cubic_coeff_a */) const {
+    if (x < 0.0f) {
+      x = -x;
+    }
+    if (x < 1.0f) {
+      return 1.0f - x;
+    }
+    return 0.0f;
+  }
+};
+
+struct BiCubicFilter {
+  __device__ float operator()(float x, float cubic_coeff_a ) const {
+    /* https://en.wikipedia.org/wiki/Bicubic_interpolation#Bicubic_convolution_algorithm
+     */
+    if (x < 0.0f) {
+      x = -x;
+    }
+    if (x < 1.0f) {
+      return ((cubic_coeff_a + 2.0f) * x - (cubic_coeff_a + 3.0f)) * x * x + 1;
+    }
+    if (x < 2.0f) {
+      return (((x - 5.0f) * x + 8.f) * x - 4.f) * cubic_coeff_a;
+    }
+    return 0.0f;
+  }
+};
+
+struct TriLinearFilter {
+  __device__ float operator()(float x, float /* cubic_coeff_a */) const {
+    if (x < 0.0f) {
+      x = -x;
+    }
+    if (x < 1.0f) {
+      return 1.0f - x;
+    }
+    return 0.0f;
+  }
+};
+
+/// <summary>
+/// This function expects the following buffers to be pre-allocated on device
+/// 1. bounds: int64_t[output_size * 2]
+/// 2. out_of_bounds: int64_t[output_size]
+/// 3. scale_data: T[output_size * window_size]
+///
+/// Template parameter AccumType
+/// </summary>
+template <typename AccumType, typename Filter, typename CudaFunctionOriginalCoordinate>
+__device__ void SetupUpsampleFilterAnitAliasImpl(
+    int id,
+    int64_t input_size, int64_t output_size,
+    float inv_scale,
+    float roi_start, float roi_end,
+    float support, int32_t window_size, bool exclude_outside,
+    float cubic_coeff_a,
+    int64_t* bounds,
+    int64_t* out_of_bounds,
+    AccumType* scale_data) {
+  CudaFunctionOriginalCoordinate transform_coordinate{};
+  Filter filter{};
+
+  const float scale = 1.0f / inv_scale;
+  const float center = 0.5f + (scale == 1.0f) ? static_cast<float>(id)
+                                        : get_original_coordinate(static_cast<float>(id), inv_scale,
+                                                                  static_cast<float>(output_size),
+                                                                  static_cast<float>(input_size),
+                                                                  roi_start, roi_end);
+
+  if (center - 0.5f < 0 || center - 0.5f > static_cast<float>(input_size - 1)) {
+    out_of_bounds[id] = id;
+  } else {
+    out_of_bounds[id] = -1;
+  }
+
+  float total_weight = 0.0;
+
+  auto fmin = _Floor(center - support + 0.5f);
+  auto fmax = _Floor(center + support + 0.5f);
+
+  int64_t min_real = static_cast<int64_t>(fmin);
+  int64_t max_real = static_cast<int64_t>(fmax);
+  int64_t min_cut = _Max(min_real, 0LL);
+  int64_t max_cut = _Min(max_real, input_size);
+
+  auto min_val = exclude_outside ? min_cut : min_real;
+  auto max_val = exclude_outside ? max_cut : max_real;
+  bounds[id * 2] = min_cut;
+  bounds[id * 2 + 1] = max_cut;
+
+  auto* scale_buffer = reinterpret_cast<float*>(&scale_data[id * window_size]);
+  int64_t x = 0;
+  max_val -= min_val;
+  for (; x < max_val; x++) {
+    float w = filter((x + min_val - center + 0.5f) * inv_scale, cubic_coeff_a);
+    scale_buffer[x] = w;
+    total_weight += w;
+  }
+
+  if (!exclude_outside) {
+    int64_t neg_xsize = min_val < 0 ? -min_val : 0;
+    for (x = 0; x < neg_xsize; x++) {
+      scale_buffer[neg_xsize] += scale_buffer[x];
+    }
+
+    int64_t bound_size =
+        max_val + min_val > input_size ? max_val + min_val - input_size : 0;
+    for (x = max_val - bound_size; x < max_val; x++) {
+      scale_buffer[max_val - bound_size - 1] +=
+          scale_buffer[x];
+    }
+
+    for (x = 0; (neg_xsize | bound_size) > 0 && x < max_cut - min_cut; x++) {
+      scale_buffer[x] = scale_buffer[x + neg_xsize];
+    }
+  }
+
+  const float total_weight_inv = (total_weight == 0.0f) ? 1.f : (1.f / total_weight);
+  auto* scale_buffer_int = reinterpret_cast<int32_t*>(scale_buffer);
+  for (x = 0; x < max_cut - min_cut; x++) {
+    scale_buffer[x] *= total_weight_inv;
+
+    // normalize the scale to 1 << 22 for int8/uint8
+    if constexpr (std::is_same<AccumType, int32_t>::value) {
+      scale_buffer_int[x] = static_cast<int32_t>(_Round(scale_buffer[x] * ConstValue::mag_factor * 2.f));
+    }
+  }
+}
+
+/// This kernel computes antialias filter for bilinear upsampling.
+/// The function expects the following buffers to be pre-allocated on device
+/// 1. bounds: int64_t[output_size * 2] for each of the two dimensions
+/// 2. out_of_bounds: int64_t[output_size] for each of the two dimensions
+/// 3. scale_data: AccumType[output_size * window_size] for each of the two dimensions
+/// Buffers layout [y_data, x_data]
+template <typename AccumType, typename Filter, typename CudaFunctionOriginalCoordinate>
+__global__ void _SetupBilinearUpsampleFilterAntiAlias(
+    int64_t input_height, int64_t input_width,
+    int64_t output_height, int64_t output_width,
+    float inv_scale_height, float inv_scale_width,
+    float roi_height_start, float roi_height_end,
+    float roi_width_start, float roi_width_end,
+    float support, bool exclude_outside,
+    const size_t SumHW,
+    int64_t* bounds,
+    int64_t* out_of_bounds,
+    AccumType* scale_data) {
+  CALCULATE_ELEMENTWISE_INDEX_OR_EXIT(id, SumHW);
+
+  const int32_t window_size = static_cast<int32_t>(_Ceil(support)) * 2 + 1;
+
+  // Either y or x
+  int64_t input_size = input_height;
+  int64_t output_size = output_height;
+  float inv_scale = inv_scale_height;
+  float roi_start = roi_height_start;
+  float roi_end = roi_height_end;
+  if (id >= SumHW) {
+    // Setup for x
+
+    // Adjust buffer positions
+    bounds += (output_size * 2);
+    out_of_bounds += output_size;
+    scale_data += (output_size * window_size);
+
+    // x = id - outpuit_height
+    id = id - output_height;
+    input_size = input_width;
+    output_size = output_width;
+    inv_scale = inv_scale_width;
+    roi_height_start = roi_width_start;
+    roi_height_end = roi_width_end;
+  }
+
+  SetupUpsampleFilterAnitAliasImpl<AccumType, Filter, CudaFunctionOriginalCoordinate>(
+      id,
+      input_size, output_size,
+      inv_scale,
+      roi_start, roi_end,
+      support, window_size,
+      exclude_outside,
+      onnxruntime::kCubicCoeffA, // Default value
+      bounds,
+      out_of_bounds,
+      scale_data);
+}
+
+
+/// <summary>
+/// Compute AntiAlias filter for trilinear upsampling, all in one go
+/// The function expects the following buffers to be pre-allocated on device
+/// 1. bounds: int64_t[output_size * 2] for each of the three dimensions
+/// 2. out_of_bounds: int64_t[output_size] for each of the three dimensions
+/// 3. scale_data: AccumType[output_size * window_size] for each of the three dimensions
+/// Each kind of buffer contains data for all 3 dims.
+/// Buffers layout [z_data, y_data, x_data]
+/// </summary>
+template <typename AccumType, typename Filter, typename CudaFunctionOriginalCoordinate>
+__global__ void _SetupTrilinerarUpsampleFilterAntiAlias(
+    int64_t input_depth, int64_t input_height, int64_t input_width,
+    int64_t output_depth, int64_t output_height, int64_t output_width,
+    float inv_scale_depth, float inv_scale_height, float inv_scale_width,
+    float roi_depth_start, float roi_depth_end,
+    float roi_height_start, float roi_height_end,
+    float roi_width_start, float roi_width_end,
+    float support, bool exclude_outside,
+    const size_t SumDHW,
+    int64_t* bounds,
+    int64_t* out_of_bounds,
+    AccumType* scale_data) {
+  CALCULATE_ELEMENTWISE_INDEX_OR_EXIT(id, SumDHW);
+
+  const int32_t window_size = static_cast<int32_t>(_Ceil(support)) * 2 + 1;
+
+  // Setup for z by default (id < output_depth)
+  int64_t input_size = input_depth;
+  int64_t output_size = output_depth;
+  float inv_scale = inv_scale_depth;
+  float roi_start = roi_depth_start;
+  float roi_end = roi_depth_end;
+
+  if (id >= output_depth && id < (id - output_depth)) {
+    // Setup for y - height
+
+    // Adjust buffer positions
+    bounds += output_size * 2;
+    out_of_bounds += output_size;
+    scale_data += (output_size * window_size);
+
+    // y = id - output_height
+    id = id - output_depth;
+    input_size = input_height;
+    output_size = output_height;
+    inv_scale = inv_scale_height;
+    roi_start = roi_height_start;
+    roi_end = roi_height_end;
+  } else if (id > output_depth) {
+    // Setup for x
+
+    // Adjust buffer positions
+    bounds += (output_size * 4);
+    out_of_bounds += (output_size * 2);
+    scale_data += output_size * window_size * 2;
+
+    // x = id - output_depth - output_height
+    id = id - output_depth - output_height;
+    input_size = input_width;
+    output_size = output_width;
+    inv_scale = inv_scale_width;
+    roi_start = roi_width_start;
+    roi_end = roi_width_end;
+  }
+
+  SetupUpsampleFilterAnitAliasImpl<AccumType, Filter, CudaFunctionOriginalCoordinate>(
+      id,
+      input_size, output_size,
+      inv_scale,
+      roi_start, roi_end,
+      support, window_size,
+      exclude_outside,
+      onnxruntime::kCubicCoeffA,
+      bounds,
+      out_of_bounds,
+      scale_data);
 }
 
 // The following method supports a 2-D or 4-D input in 'Linear mode'. Last two dimension is [H, W].
@@ -371,31 +637,22 @@ __global__ void _ResizeTrilinearCoordinateMapping(
     LinearMappingInfo* dims_mapping) {
   CALCULATE_ELEMENTWISE_INDEX_OR_EXIT(id, SumDHW);
   if (id < output_depth) {  //  z = id
-    float input_z = scale_depth == 1 ? static_cast<float>(id)  :
-                                       transform_coordinate(static_cast<float>(id), scale_depth,
-                                       static_cast<float>(output_depth), static_cast<float>(input_depth),
-                                       roi_depth_start, roi_depth_end);
+    float input_z = scale_depth == 1 ? static_cast<float>(id) : transform_coordinate(static_cast<float>(id), scale_depth, static_cast<float>(output_depth), static_cast<float>(input_depth), roi_depth_start, roi_depth_end);
     dims_mapping[id].extrapolate_ = (int)(extrapolation_enabled && (input_z < 0 || input_z > static_cast<float>(input_depth - 1)));
     input_z = max(0.0f, min(input_z, static_cast<float>(input_depth - 1)));
     int z_int = static_cast<int>(input_z);
     dims_mapping[id].origin_ = z_int;
     dims_mapping[id].weight_ = (z_int >= input_depth - 1) ? 0.5f : input_z - z_int;
   } else if (id >= output_depth && id < (output_depth + output_height)) {  //  y = id - output_depth
-    float input_y = scale_height == 1 ? static_cast<float>(id - output_depth) :
-                                        transform_coordinate(static_cast<float>(id - output_depth), scale_height,
-                                        static_cast<float>(output_height), static_cast<float>(input_height),
-                                        roi_height_start, roi_height_end);
+    float input_y = scale_height == 1 ? static_cast<float>(id - output_depth) : transform_coordinate(static_cast<float>(id - output_depth), scale_height, static_cast<float>(output_height), static_cast<float>(input_height), roi_height_start, roi_height_end);
 
     dims_mapping[id].extrapolate_ = (int)(extrapolation_enabled && (input_y < 0 || input_y > static_cast<float>(input_height - 1)));
     input_y = max(0.0f, min(input_y, static_cast<float>(input_height - 1)));
     int y_int = static_cast<int>(input_y);
     dims_mapping[id].origin_ = y_int;
     dims_mapping[id].weight_ = (y_int >= input_height - 1) ? 0.5f : input_y - y_int;
-  } else {  //x = id - output_depth - output_height
-    float input_x = scale_width == 1 ? static_cast<float>(id - output_depth - output_height) :
-                                       transform_coordinate(static_cast<float>(id - output_depth - output_height), scale_width,
-                                       static_cast<float>(output_width), static_cast<float>(input_width),
-                                       roi_width_start, roi_width_end);
+  } else {  // x = id - output_depth - output_height
+    float input_x = scale_width == 1 ? static_cast<float>(id - output_depth - output_height) : transform_coordinate(static_cast<float>(id - output_depth - output_height), scale_width, static_cast<float>(output_width), static_cast<float>(input_width), roi_width_start, roi_width_end);
     dims_mapping[id].extrapolate_ = (int)(extrapolation_enabled && (input_x < 0 || input_x > static_cast<float>(input_width - 1)));
     input_x = max(0.0f, min(input_x, static_cast<float>(input_width - 1)));
     int x_int = static_cast<int>(input_x);
@@ -513,14 +770,7 @@ __global__ void _ResizeCubicCoordinateMapping(
   int max_input_coord = static_cast<int>(is_y_axis ? input_height : input_width);
 
   float scale = is_y_axis ? scale_height : scale_width;
-  float input_coordinat = scale == 1 ? (is_y_axis ? id : id - output_height) :
-      transform_coordinate(
-      static_cast<float>(is_y_axis ? id : id - output_height),
-      scale,
-      static_cast<float>(is_y_axis ? output_height : output_width),
-      static_cast<float>(max_input_coord),
-      (is_y_axis ? roi_height_start : roi_width_start),
-      (is_y_axis ? roi_height_end : roi_width_end));
+  float input_coordinat = scale == 1 ? (is_y_axis ? id : id - output_height) : transform_coordinate(static_cast<float>(is_y_axis ? id : id - output_height), scale, static_cast<float>(is_y_axis ? output_height : output_width), static_cast<float>(max_input_coord), (is_y_axis ? roi_height_start : roi_width_start), (is_y_axis ? roi_height_end : roi_width_end));
   int coord_int = static_cast<int>(_Floor(input_coordinat));
   float s_coord = abs(input_coordinat - coord_int);
   float coeff_sum = 1.0f;
@@ -761,7 +1011,7 @@ void ResizeImpl(
       } else if (is_3D) {
         DISPATCH_RESIZE_COORDINATE_TRANSFORMATION_MODE(coordinate_transform_mode, [&]() {
           _ResizeTrilinearCoordinateMapping<T><<<blocksPerDimsMappingGrid, 32, 0, stream>>>(
-              input_shape[rank - 3] , input_shape[rank - 2], input_shape[rank - 1],
+              input_shape[rank - 3], input_shape[rank - 2], input_shape[rank - 1],
               output_depth, output_height, output_width,
               scales_vals[rank - 3], scales_vals[rank - 2], scales_vals[rank - 1],
               roi_vals[rank - 3], roi_vals[rank - 3 + rank],
@@ -807,9 +1057,85 @@ void ResizeImpl(
   }
 }
 
+template <class T>
+void ResizeAntiAliaceImpl(
+    cudaStream_t stream,
+    const std::optional<T>& extrapolation_value,
+    const ResizeAntiAliasParams& params,
+    const UpsampleMode upsample_mode,
+    ResizeCoordinateTransformationMode coordinate_transform_mode,
+    const bool is_nchw,
+    const T* input_data,
+    T* output_data,
+    const size_t N) {
+  const int rank = params.input_shape.Size();
+  const auto& input_shape = params.input_shape;
+  const auto& output_shape = params.output_shape;
+  const auto& output_div_pitches = params.output_div_pitches;
+  const auto& roi_vals = params.roi_vals;
+  const auto& scales_vals = params.scales_vals;
+
+  // XXX: Move the below to the CPU code.
+  const bool isSame = std::all_of(scales_vals.Data(), scales_vals.Data() + rank, [](float v) { return v == 1.0f; }) &&
+                      (coordinate_transform_mode != ResizeCoordinateTransformationMode::TF_CROP_AND_RESIZE);
+  if (isSame) {
+    CUDA_CALL_THROW(cudaMemcpyAsync(output_data, input_data, N * sizeof(T), cudaMemcpyDeviceToDevice, stream));
+    return;
+  }
+
+  // We support a special case of bilinear or bicubic if the input data is 4D with the outer 2 scales being 1.0
+  // We would have validated the outer scale values by the time execution reaches this
+  const bool is_2D = (rank == 2 || rank == 4);
+
+  // We support a special case of trilinear or tricubic if the input data is 5D with the outer 2 scales being 1.0
+  // We would have validated the outer scale values by the time execution reaches this
+  const bool is_3D = (rank == 3 || rank == 5);
+
+  // Should not hit this as we have already validated input rank/scales and we provide verbose error messages
+  // to the user.
+  ORT_ENFORCE(is_2D || is_3D, "Only bilinear/trilinear and bicubic modes are supported in Resize");
+
+  int blocksPerGrid = static_cast<int>(ceil(static_cast<float>(N) / GridDim::maxThreadsPerBlock));
+  fast_divmod div_output_image;
+  if (is_2D) {
+    div_output_image = (rank > 2) ? output_div_pitches[rank - 3] : fast_divmod(gsl::narrow_cast<int>(N));
+  } else if (is_3D) {
+    div_output_image = (rank > 3) ? output_div_pitches[rank - 4] : fast_divmod(gsl::narrow_cast<int>(N));
+  }
+
+  const int64_t input_height = input_shape[rank - 2];
+  const int64_t input_width = input_shape[rank - 1];
+
+  const int64_t output_depth = is_3D ? output_shape[rank - 3] : 0;
+  const int64_t output_height = output_shape[rank - 2];
+  const int64_t output_width = output_shape[rank - 1];
+  int blocksPerDimsMappingGrid =
+      static_cast<int>(ceil((output_depth + output_height + output_width) / 32.0));
+
+  /// UpsampleBase kernel instantiation code makes sure that NN mode is not enabled when we get here.
+
+  switch (upsample_mode) {
+    case UpsampleMode::LINEAR:
+
+      if (is_2D) {
+        DISPATCH_RESIZE_COORDINATE_TRANSFORMATION_MODE(coordinate_transform_mode, [&]() {
+          _ResizeBilinearCoordinateMapping<T><<<blocksPerDimsMappingGrid, 32, 0, stream>>>(
+              input_height, input_width,
+              output_height, input_width,
+              scales_vals[rank - 2], scales_vals[rank - 1],
+              roi_vals[rank - 2], roi_vals[rank - 2 + rank],
+              roi_vals[rank - 1], roi_vals[rank - 1 + rank],
+              output_height + output_width, extrapolation_enabled, coord_t(),
+              reinterpret_cast<LinearMappingInfo*>(dims_mapping));
+        });
+      }
+      break;
+  }
+}
+
 #define SPECIALIZED_IMPL(T)                                         \
   template void ResizeImpl<T>(                                      \
-      cudaStream_t stream,                                    \
+      cudaStream_t stream,                                          \
       const UpsampleMode upsample_mode,                             \
       const int rank,                                               \
       TArray<int64_t>& input_shape,                                 \

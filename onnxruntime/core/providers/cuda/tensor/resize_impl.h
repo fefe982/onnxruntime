@@ -36,5 +36,31 @@ void ResizeImpl(
     onnxruntime::ResizeNearestMode nearest_mode,
     void* dims_mapping);
 
+// Cuda antialiase parameters
+struct ResizeAntiAliasParams {
+  const TArray<int64_t>& input_shape;
+  const TArray<int64_t>& output_shape;
+  const TArray<int64_t>& input_strides;
+  const TArray<fast_divmod>& output_div_pitches;
+  const TArray<float, 10>& roi_vals;          // Roi on CPU
+  const TArray<float>& scales_vals;           // Kernel input on CPU
+  gsl::span<int64_t> bounds;                  // On Device scratch buffer, must be pre-allocated
+  gsl::span<int64_t> out_of_bounds;           // OnDevice scratch buffer, must be pre-allocated
+  gsl::span<const float> weight_coeffcients;  //  OnDevice scratch buffer  must be pre-allocated
+  const float cubic_coeff_a;
+  bool exclude_outsize;
+  void* dims_mapping;  // On Device
+};
+
+/// <summary>
+/// Compute window size for a given dimension scaled support value.
+/// </summary>
+/// <param name="scaled_support"></param>
+/// <returns></returns>
+inline int32_t ComputeWindowSize(float scaled_support) {
+  SafeInt<int32_t> window_size = narrow<int32_t>(ceilf(scaled_support));
+  return window_size * 2 + 1;
+}
+
 }  // namespace cuda
 }  // namespace onnxruntime

@@ -59,6 +59,37 @@ enum class AspectRatioPolicy {
   NOT_SMALLER,
 };
 
+// Antialias types
+template <typename T>
+struct AccumulateType {
+  using type = int32_t;
+  using Dtype = T;
+};
+
+template <>
+struct AccumulateType<int32_t> {
+  using type = float;
+};
+
+template <>
+struct AccumulateType<float> {
+  using type = float;
+};
+
+template <>
+struct AccumulateType<double> {
+  using type = double;
+};
+
+// Antialiasing constants
+static constexpr float kCubicCoeffA = -0.75f;
+static constexpr float kSupportSize = 2.0f;
+static constexpr float kBiCubicSupportSize = 4.0f;
+
+namespace ConstValue {
+constexpr int32_t mag_factor = 1 << (22 - 1);
+}
+
 class UpsampleBase {
  public:
   // Make this available in other EP via provider bridge
@@ -128,7 +159,7 @@ class UpsampleBase {
     nearest_mode_ = StringToNearestMode(nearest_mode_name);
     get_nearest_pixel_ = GetNearestPixelFromOriginal(nearest_mode_);
 
-    cubic_coeff_a_ = info.GetAttrOrDefault<float>("cubic_coeff_a", -0.75f);
+    cubic_coeff_a_ = info.GetAttrOrDefault<float>("cubic_coeff_a", kCubicCoeffA);
     exclude_outside_ = info.GetAttrOrDefault<int64_t>("exclude_outside", 0) == 0 ? false : true;
 
     if ((exclude_outside_ == 1 && mode_ != CUBIC) && (antialias_ == false || mode_ != LINEAR)) {
