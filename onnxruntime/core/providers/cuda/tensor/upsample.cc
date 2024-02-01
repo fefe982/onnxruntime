@@ -37,57 +37,24 @@ REGISTER_VERSIONED_TYPED_KERNEL(MLFloat16, 9, 9);
 REGISTER_VERSIONED_TYPED_KERNEL(int32_t, 9, 9);
 REGISTER_VERSIONED_TYPED_KERNEL(uint8_t, 9, 9);
 
-/// <summary>
-/// Compute scaled support value for a given dimension inverse scale
-/// </summary>
-/// <param name="support_value"></param>
-/// <param name="inv_scale"></param>
-/// <returns></returns>
-inline float ComputeScaledSupportValue(float support_value, float inv_scale) {
-  const float scale = 1.0f / inv_scale;
-  float support = (scale >= 1.0f) ? (support_value * 0.5f) * scale : support_value * 0.5f;
-  return support;
-}
-
-/// <summary>
-/// Computes scale buffer size in number of elements for allocation purposes.
-/// </summary>
-/// <typeparam name="T"></typeparam>
-/// <param name="output_size"></param>
-/// <param name="window_size"></param>
-/// <returns>Number of elements to fit in the buffer</returns>
-inline SafeInt<int64_t> ComputeScaleBufferSize(int64_t output_size, int32_t window_size) {
-  SafeInt<int64_t> buffer_size(output_size);
-  return buffer_size * window_size;
-}
-
-/// <summary>
-/// Compute a buffer for bilinear data for CUDA antialias resizing.
-/// </summary>
-/// <param name="output_height"></param>
-/// <param name="output_width"></param>
-/// <param name="inv_height_scale"></param>
-/// <param name="inv_width_scale"></param>
-/// <param name="support_value"></param>
-/// <returns>Cumulative buffer size for y and x scales in number of elements</returns>
-static int64_t ComputeBilinearScaleBufferSize(int64_t output_height, int64_t output_width,
-                                              float inv_height_scale, float inv_width_scale, float support_value) {
+int64_t ComputeBilinearScaleBufferSize(int64_t output_height, int64_t output_width,
+                                       float inv_height_scale, float inv_width_scale, float support_value) {
   const float scaled_support_height = ComputeScaledSupportValue(support_value, inv_height_scale);
   const float scaled_support_width = ComputeScaledSupportValue(support_value, inv_width_scale);
   const int32_t window_size_height = ComputeWindowSize(scaled_support_height);
   const int32_t window_size_width = ComputeWindowSize(scaled_support_width);
 
-  auto height_buffer_size = ComputeScaleBufferSize(output_height, window_size_height);
-  auto width_buffer_size = ComputeScaleBufferSize(output_width, window_size_width);
+  auto height_buffer_size = ComputeWeightedCoeffBufferSize(output_height, window_size_height);
+  auto width_buffer_size = ComputeWeightedCoeffBufferSize(output_width, window_size_width);
   return height_buffer_size + width_buffer_size;
 }
 
-static int64_t ComputeTrilinearScaleBufferSize(int64_t output_height, int64_t output_width, int64_t output_depth,
-                                               float inv_height_scale, float inv_width_scale, float inv_depth_scale,
-                                               float support_value) {
+int64_t ComputeTrilinearScaleBufferSize(int64_t output_height, int64_t output_width, int64_t output_depth,
+                                        float inv_height_scale, float inv_width_scale, float inv_depth_scale,
+                                        float support_value) {
   const float scaled_support_depth = ComputeScaledSupportValue(support_value, inv_depth_scale);
   const int32_t window_size_depth = ComputeWindowSize(scaled_support_depth);
-  auto depth_buffer_size = ComputeScaleBufferSize(output_depth, window_size_depth);
+  auto depth_buffer_size = ComputeWeightedCoeffBufferSize(output_depth, window_size_depth);
 
   depth_buffer_size += ComputeBilinearScaleBufferSize(output_height, output_width, inv_height_scale, inv_width_scale, support_value);
   return depth_buffer_size;
