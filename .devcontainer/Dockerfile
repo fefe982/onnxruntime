@@ -4,7 +4,7 @@
 # --------------------------------------------------------------
 # Dockerfile to Develop inside Dev Container
 
-ARG VARIANT=ubuntu-20.04
+ARG VARIANT=ubuntu-22.04
 FROM mcr.microsoft.com/vscode/devcontainers/base:0-${VARIANT}
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -31,5 +31,5 @@ RUN apt-get update \
 
 # Install newer CMake version
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends aria2 aria2 && aria2c -q -d /tmp -o cmake-3.27.3-linux-x86_64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.27.3/cmake-3.27.3-linux-x86_64.tar.gz && tar -zxf /tmp/cmake-3.27.3-linux-x86_64.tar.gz --strip=1 -C /usr \
+    && apt-get install -y --no-install-recommends aria2 aria2 && aria2c -q -d /tmp -o cmake-3.27.3-linux-aarch64.tar.gz https://github.com/Kitware/CMake/releases/download/v3.27.3/cmake-3.27.3-linux-aarch64.tar.gz && tar -zxf /tmp/cmake-3.27.3-linux-aarch64.tar.gz --strip=1 -C /usr \
     && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
